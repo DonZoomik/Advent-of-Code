@@ -1,24 +1,18 @@
+Measure-Command {
 #$data = gc "C:\aoc\Advent-of-Code\2024\5\test.txt"
 $data = gc "C:\aoc\Advent-of-Code\2024\5\data.txt"
 $goodsum = 0
 $badsum = 0
-$break = for ($i=0;$i -lt $data.count;$i++){
-    if (!$data[$i]) {$i;break}
-}
-
 $rules = for ($i=0;$i -lt $data.count;$i++){
     if (!$data[$i]) {$break = $i;break}
     ,($data[$i].split('|'))
 }
-
-Import-Module -name  C:\aoc\Advent-of-Code\2024\5\Permutation.psm1
 
 function testvalid {
     param(
         $sequence,
         $start = 0
     )
-    $sequencecorrect = $true
     :initnumber for ($j=$start;$j -lt $numbers.count;$j++) {
         for ($r=0;$r -lt $break-1;$r++) {
             if ($numbers[$j] -eq $rules[$r][0] -and $rules[$r][1] -notin $numbers[($j)..($numbers.Count-1)] -and $rules[$r][1] -in $numbers) { 
@@ -36,6 +30,7 @@ function testvalid {
 }
 
 for ($i=$break+1;$i -lt $data.count;$i++) {
+    write-host $i
     $numbers = $data[$i].Split(',')
     $result = testvalid -sequence $numbers
     if (!$result) {
@@ -44,21 +39,25 @@ for ($i=$break+1;$i -lt $data.count;$i++) {
         #write-host "M $middlepoint $($numbers[$middlepoint])"
         $goodsum += $numbers[$middlepoint]
     } else {
-        $permutations = Get-Permutation $numbers
-        write-host "$i $($permutations.count) $(get-date)"
-        foreach ($permutation in $permutations) {
-            $numbers = $permutation -split ' '
+        while ($true) {
+            $n1 = $rules[$result.rul][0]
+            $n2 = $rules[$result.rul][1]
+            $posn1 = $result.pos
+            $posn2 = $numbers.IndexOf($n2)
+            $numbers[$posn1] = $n2
+            $numbers[$posn2] = $n1
             $result = testvalid -sequence $numbers
             if (!$result) {
                 $middlepoint = [math]::Floor($numbers.count/2)
                 $badsum += $numbers[$middlepoint]
                 break
-            }
+            } 
         }
         #write-host "F $failingrule $($numbers -join ',')"
     #    $($numbers -join ',') >> "C:\aoc\Advent-of-Code\2024\5\datafails.txt"
     }
     #pause
+}
 }
 $goodsum
 $badsum
