@@ -61,9 +61,11 @@ function buildpairs {
 }
 function buildantipoints {
     param($values)
+    #write-host $values
     $distancex = [math]::Abs($values[0].x - $values[1].x)
     $distancey = [math]::Abs($values[0].y - $values[1].y)
-    if ($values[0].x -ge $values[1].x) {
+
+    if ($values[0].x -lt $values[1].x) {
         $antipoint1x = $values[0].x + $distancex
         $antipoint2x = $values[1].x - $distancex
     } else {
@@ -71,26 +73,14 @@ function buildantipoints {
         $antipoint2x = $values[1].x + $distancex
     }
     
-    if ($values[0].y -ge $values[1].y) {
+    if ($values[0].y -lt $values[1].y) {
         $antipoint1y = $values[0].y + $distancey
         $antipoint2y = $values[1].y - $distancey
     } else {
         $antipoint1y = $values[0].y - $distancey
         $antipoint2y = $values[1].y + $distancey
     }
-    if (($values[0].x + $distancex -eq 20 -and $values[0].y + $distancey -eq 26) -or 
-        ($values[1].x + $distancex -eq 20 -and $values[1].y + $distancey -eq 26) -or
-        ($values[0].x - $distancex -eq 20 -and $values[0].y - $distancey -eq 26) -or
-        ($values[1].x - $distancex -eq 20 -and $values[1].y - $distancey -eq 26) -or 
-        ($values[0].x + $distancex -eq 20 -and $values[0].y - $distancey -eq 26) -or
-        ($values[0].x - $distancex -eq 20 -and $values[0].y + $distancey -eq 26) -or
-        ($values[1].x + $distancex -eq 20 -and $values[1].y - $distancey -eq 26) -or
-        ($values[1].x - $distancex -eq 20 -and $values[1].y + $distancey -eq 26)
-    ) {
-        write-host $values
-        pause
-    }
-    return @(
+    $baps = @(
         [PSCustomObject]@{
             x = $antipoint1x
             y = $antipoint1y
@@ -102,10 +92,54 @@ function buildantipoints {
             v = $values[0].v
         }
     )
+
+    $break = $true
+    while($break) {
+        $inmap1 = $true
+        $inmap2 = $true
+        if ($values[0].x -lt $values[1].x) {
+            $antipoint1x = $antipoint1x + $distancex
+            $antipoint2x = $antipoint2x - $distancex
+        } else {
+            $antipoint1x = $antipoint1x - $distancex
+            $antipoint2x = $antipoint2x + $distancex
+        }
+        
+        if ($values[0].y -lt $values[1].y) {
+            $antipoint1y = $antipoint1y + $distancey
+            $antipoint2y = $antipoint2y - $distancey
+        } else {
+            $antipoint1y = $antipoint1y - $distancey
+            $antipoint2y = $antipoint2y + $distancey
+        }
+        if (testinmap -x $antipoint1x -y $antipoint1y) {
+            $baps += [PSCustomObject]@{
+                x = $antipoint1x
+                y = $antipoint1y
+                v = $values[0].v
+            }
+        } else {
+            $inmap1 = $false
+            #write-host out1
+        }
+        if (testinmap -x $antipoint2x -y $antipoint2y) {
+            $baps += [PSCustomObject]@{
+                x = $antipoint2x
+                y = $antipoint2y
+                v = $values[0].v
+            }
+        } else {
+            $inmap2 = $false
+            #write-host out2
+        }
+        if (!$inmap1 -and !$inmap2){$break=$false}
+    }
+    #pause
+    return $baps
 }
 $antipoints = $()
 
-$cgroups = $chars|group v -CaseSensitive|? count -ge 2|sort name
+$cgroups = $chars|group v|? count -ge 2
 $uchars = $cgroups.name
 $antipoints = foreach ($cgroup in $cgroups) {
     $pairs = buildpairs -values $cgroup.Group
@@ -115,31 +149,35 @@ $antipoints = foreach ($cgroup in $cgroups) {
         $aps = buildantipoints -values $pair
         foreach ($ap in $aps) {
             if (testinmap -x $ap.x -y $ap.y ) {
-                <#if ($matrix[$ap.y,$ap.x] -eq '.') {
+                if ($matrix[$ap.y,$ap.x] -eq '.') {
                     $matrix[$ap.y,$ap.x] = '#'
-                } elseif ($matrix[$ap.y,$ap.x] -eq '#') {
+                } <#elseif ($matrix[$ap.y,$ap.x] -eq '#') {
                     $matrix[$ap.y,$ap.x] = '*'
                 } elseif ($matrix[$ap.y,$ap.x] -cin $uchars) {
                     $matrix[$ap.y,$ap.x] = '/'
                 } elseif ($matrix[$ap.y,$ap.x] -eq '/') {
                     $matrix[$ap.y,$ap.x] = '\'
                 }#>
-                $matrix[$ap.y,$ap.x] = '#'
+                #$matrix[$ap.y,$ap.x] = '#'
                 $ap
             }
         }
     }
+    #printmatrix
+    #pause
 }
 
 
 printmatrix
-($uchars|sort)-join''
+#($uchars|sort)-join''
 ($antipoints|select x,y -unique|measure).count
-($antipoints|measure).count
-$matrix|?{$_ -match '#|\*|\/|\\'}|measure
-
+#($antipoints|measure).count
+($matrix|?{$_ -ne '.'}|measure).count
+<#
 $data2 = (gc "C:\aoc\Advent-of-Code\2024\8\data3.txt")-join'' |ConvertFrom-Json
 comparematrix
 
 $data|%{$_.ToCharArray()}|?{$_ -ne '.'}|measure
 $chars.count
+#>
+#$matrix[26,20]

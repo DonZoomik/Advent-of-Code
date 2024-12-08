@@ -5,18 +5,11 @@ $data = gc "C:\aoc\Advent-of-Code\2024\8\data.txt"
 $height = $data.Count
 $width = $data[0].ToCharArray().Count
 $matrix = New-Object 'object[,]' $height,$width
-
+$antipoints = @()
 $chars = for ($y=0;$y -lt $height;$y++){
     $row = $data[$y].ToCharArray()
     for ($x=0;$x -lt $width;$x++) {
         $matrix[$y,$x] = $row[$x]
-        if ($row[$x] -ne '.') {
-            [PSCustomObject]@{
-                x = $x
-                y = $y
-                v = $row[$x]
-            }
-        }
     }
 }
 
@@ -63,6 +56,8 @@ function buildantipoints {
     param($values)
     $distancex = [math]::Abs($values[0].x - $values[1].x)
     $distancey = [math]::Abs($values[0].y - $values[1].y)
+    #write-host $values
+    #write-host "$distancex $distancey"
     if ($values[0].x -ge $values[1].x) {
         $antipoint1x = $values[0].x + $distancex
         $antipoint2x = $values[1].x - $distancex
@@ -78,68 +73,64 @@ function buildantipoints {
         $antipoint1y = $values[0].y - $distancey
         $antipoint2y = $values[1].y + $distancey
     }
-    if (($values[0].x + $distancex -eq 20 -and $values[0].y + $distancey -eq 26) -or 
-        ($values[1].x + $distancex -eq 20 -and $values[1].y + $distancey -eq 26) -or
-        ($values[0].x - $distancex -eq 20 -and $values[0].y - $distancey -eq 26) -or
-        ($values[1].x - $distancex -eq 20 -and $values[1].y - $distancey -eq 26) -or 
-        ($values[0].x + $distancex -eq 20 -and $values[0].y - $distancey -eq 26) -or
-        ($values[0].x - $distancex -eq 20 -and $values[0].y + $distancey -eq 26) -or
-        ($values[1].x + $distancex -eq 20 -and $values[1].y - $distancey -eq 26) -or
-        ($values[1].x - $distancex -eq 20 -and $values[1].y + $distancey -eq 26)
-    ) {
-        write-host $values
-        pause
-    }
-    return @(
-        [PSCustomObject]@{
+    #write-host "$antipoint1x $antipoint1y"
+    if (testinmap -x $antipoint1x -y $antipoint1y) {
+        $global:antipoints += ,[PSCustomObject]@{
             x = $antipoint1x
             y = $antipoint1y
             v = $values[0].v
-        },
-        [PSCustomObject]@{
+        }
+    }
+    if (testinmap -x $antipoint2x -y $antipoint2y) {
+        $global:antipoints += ,[PSCustomObject]@{
             x = $antipoint2x
             y = $antipoint2y
             v = $values[0].v
         }
-    )
+    }
 }
-$antipoints = $()
-
-$cgroups = $chars|group v -CaseSensitive|? count -ge 2|sort name
-$uchars = $cgroups.name
-$antipoints = foreach ($cgroup in $cgroups) {
-    $pairs = buildpairs -values $cgroup.Group
-    #write-host "$($cgroup.Count) $($pairs.count)"
-    #pause
-    foreach ($pair in $pairs) {
-        $aps = buildantipoints -values $pair
-        foreach ($ap in $aps) {
-            if (testinmap -x $ap.x -y $ap.y ) {
-                <#if ($matrix[$ap.y,$ap.x] -eq '.') {
-                    $matrix[$ap.y,$ap.x] = '#'
-                } elseif ($matrix[$ap.y,$ap.x] -eq '#') {
-                    $matrix[$ap.y,$ap.x] = '*'
-                } elseif ($matrix[$ap.y,$ap.x] -cin $uchars) {
-                    $matrix[$ap.y,$ap.x] = '/'
-                } elseif ($matrix[$ap.y,$ap.x] -eq '/') {
-                    $matrix[$ap.y,$ap.x] = '\'
-                }#>
-                $matrix[$ap.y,$ap.x] = '#'
-                $ap
+function findothers {
+    param (
+        $current
+    )
+    for ($y=0;$y -lt $height;$y++) {
+        for ($x=0;$x -lt $width;$x++) {
+            if ($matrix[$y,$x] -ceq $current.v -and $x -ne $current.x -and $y -ne $current.y) {
+                buildantipoints -values @($current,
+                [PSCustomObject]@{
+                    x = $x
+                    y = $y
+                    v = $current.v
+                }
+                )
             }
         }
     }
 }
 
+for ($y=0;$y -lt $width;$y++) {
+    for ($x=0;$x -lt $height;$x++) {
+        if ($matrix[$y,$x] -ne '.') {
+            findothers -current (
+                [PSCustomObject]@{
+                    x = $x
+                    y = $y
+                    v = $matrix[$y,$x]
+                }
+            )
+        }
+    }
+}
 
-printmatrix
-($uchars|sort)-join''
+
+#printmatrix
+#($uchars|sort)-join''
 ($antipoints|select x,y -unique|measure).count
-($antipoints|measure).count
-$matrix|?{$_ -match '#|\*|\/|\\'}|measure
+#($antipoints|measure).count
+#$matrix|?{$_ -match '#|\*|\/|\\'}|measure
 
-$data2 = (gc "C:\aoc\Advent-of-Code\2024\8\data3.txt")-join'' |ConvertFrom-Json
-comparematrix
+#$data2 = (gc "C:\aoc\Advent-of-Code\2024\8\data3.txt")-join'' |ConvertFrom-Json
+#comparematrix
 
-$data|%{$_.ToCharArray()}|?{$_ -ne '.'}|measure
-$chars.count
+#$data|%{$_.ToCharArray()}|?{$_ -ne '.'}|measure
+#$chars.count
